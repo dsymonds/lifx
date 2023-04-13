@@ -129,3 +129,36 @@ func readOnePacket(conn *net.UDPConn) (hdr header, payload []byte, raddr *net.UD
 	}
 	return
 }
+
+func (d *Device) query(ctx context.Context, reqType, respType uint16, reqBody []byte) ([]byte, error) {
+	conn, err := udpConn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	var hdr header
+	hdr.frameHeader.source = 0xdeadbeef // TODO: randomly generate
+	copy(hdr.frameAddress.target[0:6], d.Serial[:])
+	hdr.frameAddress.resRequired = true
+	hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
+	hdr.protocolHeader.typ = reqType
+	msg := encodeMessage(hdr, reqBody)
+
+	if _, err := conn.WriteToUDP(msg, &d.Addr); err != nil {
+		return nil, fmt.Errorf("sending message: %v", err)
+	}
+
+	hdr, payload, _, err := readOnePacket(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Check that hdr.frameHeader.source matches what we sent out.
+	if hdr.protocolHeader.typ != respType {
+		// Some different message for someone else?
+		return nil, fmt.Errorf("received message type %d (want %d)", hdr.protocolHeader.typ, respType)
+	}
+
+	return payload, nil
+}
