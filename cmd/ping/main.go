@@ -22,9 +22,21 @@ func main() {
 
 	for _, dev := range devs {
 		log.Printf("* %v (serial %x)", dev.Addr.String(), dev.Serial)
+		vendor, product, err := dev.GetVersion(ctx)
+		if err == nil {
+			log.Printf("  vendor=%d product=%d", vendor, product)
+		} else {
+			log.Printf("  [%v]", err)
+		}
 		power, err := dev.GetPower(ctx)
 		if err == nil {
 			log.Printf("  power: %.1f%%", float64(power)/65535*100)
+		} else {
+			log.Printf("  [%v]", err)
+		}
+		lpower, err := dev.GetLightPower(ctx)
+		if err == nil {
+			log.Printf("  light power: %.1f%%", float64(lpower)/65535*100)
 		} else {
 			log.Printf("  [%v]", err)
 		}
