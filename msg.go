@@ -1,8 +1,10 @@
 package lifx
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
+	"net"
 )
 
 // header represents a LIFX message header.
@@ -94,5 +96,36 @@ func decodeMessage(b []byte) (hdr header, payload []byte, err error) {
 
 	hdr.protocolHeader.typ = binary.LittleEndian.Uint16(b[32:34])
 
+	return
+}
+
+func udpConn(ctx context.Context) (*net.UDPConn, error) {
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{})
+	if err != nil {
+		return nil, fmt.Errorf("net.ListenUDP: %v", err)
+	}
+	if d, ok := ctx.Deadline(); ok { // TODO: force a deadline if none provided?
+		conn.SetReadDeadline(d)
+	}
+	return conn, nil
+}
+
+func readOnePacket(conn *net.UDPConn) (hdr header, payload []byte, raddr *net.UDPAddr, err error) {
+	var scratch [4 << 10]byte
+
+	nb, ra, err := conn.ReadFrom(scratch[:])
+	if err != nil {
+		err = fmt.Errorf("reading UDP: %w", err)
+		return
+	}
+	raddr = ra.(*net.UDPAddr)
+	b := scratch[:nb]
+	//log.Printf("got back %d bytes from %s: %q", nb, raddr, b)
+
+	hdr, payload, err = decodeMessage(b)
+	if err != nil {
+		err = fmt.Errorf("decoding response: %w", err)
+		return
+	}
 	return
 }

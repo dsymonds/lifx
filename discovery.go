@@ -3,6 +3,7 @@ package lifx
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -11,17 +12,6 @@ import (
 const (
 	stdPort = 56700
 )
-
-func udpConn(ctx context.Context) (*net.UDPConn, error) {
-	conn, err := net.ListenUDP("udp4", &net.UDPAddr{})
-	if err != nil {
-		return nil, fmt.Errorf("net.ListenUDP: %v", err)
-	}
-	if d, ok := ctx.Deadline(); ok { // TODO: force a deadline if none provided?
-		conn.SetReadDeadline(d)
-	}
-	return conn, nil
-}
 
 // Device represents a LIFX device on the local network.
 type Device struct {
@@ -49,7 +39,7 @@ func Discover(ctx context.Context) ([]Device, error) {
 	// hdr.frameAddress.target left as zero (all devices)
 	hdr.frameAddress.resRequired = false // documented recommendation
 	hdr.frameAddress.ackRequired = false
-	hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
+	//hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
 	hdr.protocolHeader.typ = 2
 	msg := encodeMessage(hdr, nil)
 
@@ -64,23 +54,17 @@ func Discover(ctx context.Context) ([]Device, error) {
 
 	// Wait for any responses.
 	var devs []Device
-	var scratch [4 << 10]byte
 	for {
-		nb, raddr, err := conn.ReadFrom(scratch[:])
+		hdr, payload, raddr, err := readOnePacket(conn)
 		if err != nil {
-			if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+			var neterr net.Error
+			if errors.As(err, &neterr) && neterr.Timeout() {
+				// Not a failure.
 				break
 			}
-			return nil, fmt.Errorf("reading response: %v", err)
+			return nil, err
 		}
-		b := scratch[:nb]
-		//log.Printf("got back %d bytes from %s", nb, raddr)
 
-		hdr, payload, err := decodeMessage(b)
-		if err != nil {
-			log.Printf("Decoding discovery response: %v", err)
-			continue
-		}
 		// TODO: Check that hdr.frameHeader.source matches what we sent out.
 		if hdr.protocolHeader.typ != 3 {
 			// Some different message for someone else?
@@ -102,7 +86,7 @@ func Discover(ctx context.Context) ([]Device, error) {
 		devs = append(devs, Device{
 			// Per docs, use the remote IP address, but the port from the payload.
 			Addr: net.UDPAddr{
-				IP:   raddr.(*net.UDPAddr).IP,
+				IP:   raddr.IP,
 				Port: int(port),
 			},
 			Serial: [6]byte(hdr.frameAddress.target[0:6]),

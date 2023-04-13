@@ -22,5 +22,11 @@ func main() {
 
 	for _, dev := range devs {
 		log.Printf("* %v (serial %x)", dev.Addr.String(), dev.Serial)
+		label, err := dev.GetLabel(ctx)
+		if err != nil {
+			log.Printf("  [%v]", err)
+			continue
+		}
+		log.Printf("  label: %q", label)
 	}
 }
