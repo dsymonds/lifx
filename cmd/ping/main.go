@@ -11,10 +11,16 @@ import (
 func main() {
 	ctx := context.Background()
 
+	client, err := lifx.NewClient()
+	if err != nil {
+		log.Fatalf("NewClient: %v", err)
+	}
+	defer client.Close()
+
 	const wait = 2 * time.Second
 	log.Printf("Discovering LIFX devices for %v...", wait)
 	discCtx, cancel := context.WithTimeout(ctx, wait)
-	devs, err := lifx.Discover(discCtx)
+	devs, err := client.Discover(discCtx)
 	if err != nil {
 		log.Fatalf("Discover: %v", err)
 	}

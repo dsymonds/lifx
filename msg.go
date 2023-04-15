@@ -4,8 +4,29 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"net"
 )
+
+type Client struct {
+	conn   *net.UDPConn // persistent connection for receiving responses
+	source uint32       // random source identifier
+}
+
+func NewClient() (*Client, error) {
+	conn, err := udpConn(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		conn:   conn,
+		source: rand.Uint32(),
+	}, nil
+}
+
+func (c *Client) Close() {
+	c.conn.Close()
+}
 
 type msgType uint16
 
@@ -157,12 +178,15 @@ func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody 
 	}
 	defer conn.Close()
 
+	seq := d.seq
+	d.seq++
+
 	var hdr header
-	hdr.frameHeader.source = 0xdeadbeef // TODO: randomly generate
+	hdr.frameHeader.source = d.client.source
 	copy(hdr.frameAddress.target[0:6], d.Serial[:])
 	hdr.frameAddress.resRequired = resRequired
 	hdr.frameAddress.ackRequired = ackRequired
-	hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
+	hdr.frameAddress.sequence = seq
 	hdr.protocolHeader.typ = uint16(reqType)
 	msg := encodeMessage(hdr, reqBody)
 
@@ -175,10 +199,14 @@ func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody 
 		return nil, err
 	}
 
-	// TODO: Check that hdr.frameHeader.source matches what we sent out.
+	if hdr.frameHeader.source != d.client.source {
+		return nil, fmt.Errorf("received message source 0x%x (want 0x%x)", hdr.frameHeader.source, d.client.source)
+	}
 	if rt := msgType(hdr.protocolHeader.typ); rt != respType {
-		// Some different message for someone else?
 		return nil, fmt.Errorf("received message type %d (want %d)", rt, respType)
+	}
+	if hdr.frameAddress.sequence != seq {
+		return nil, fmt.Errorf("received message with seq %d (want %d)", hdr.frameAddress.sequence, seq)
 	}
 
 	return payload, nil
