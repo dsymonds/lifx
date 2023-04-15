@@ -40,7 +40,7 @@ func Discover(ctx context.Context) ([]Device, error) {
 	hdr.frameAddress.resRequired = false // documented recommendation
 	hdr.frameAddress.ackRequired = false
 	//hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
-	hdr.protocolHeader.typ = 2
+	hdr.protocolHeader.typ = uint16(pktGetService)
 	msg := encodeMessage(hdr, nil)
 
 	dst := &net.UDPAddr{
@@ -66,7 +66,7 @@ func Discover(ctx context.Context) ([]Device, error) {
 		}
 
 		// TODO: Check that hdr.frameHeader.source matches what we sent out.
-		if hdr.protocolHeader.typ != 3 {
+		if msgType(hdr.protocolHeader.typ) != pktStateService {
 			// Some different message for someone else?
 			continue
 		}

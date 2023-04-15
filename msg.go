@@ -7,6 +7,26 @@ import (
 	"net"
 )
 
+type msgType uint16
+
+// Message type constants.
+const (
+	pktGetService              = msgType(2)
+	pktStateService            = msgType(3)
+	pktGetPower                = msgType(20)
+	pktStatePower              = msgType(22)
+	pktGetLabel                = msgType(23)
+	pktStateLabel              = msgType(25)
+	pktGetVersion              = msgType(32)
+	pktStateVersion            = msgType(33)
+	pktAcknowledgement         = msgType(45)
+	pktGetLightPower           = msgType(116)
+	pkgStateLightPower         = msgType(118)
+	pktSetExtendedColorZones   = msgType(510)
+	pktGetExtendedColorZones   = msgType(511)
+	pktStateExtendedColorZones = msgType(512)
+)
+
 // header represents a LIFX message header.
 //
 // https://lan.developer.lifx.com/docs/packet-contents#header
@@ -130,7 +150,7 @@ func readOnePacket(conn *net.UDPConn) (hdr header, payload []byte, raddr *net.UD
 	return
 }
 
-func (d *Device) query(ctx context.Context, reqType, respType uint16, reqBody []byte) ([]byte, error) {
+func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody []byte, resRequired, ackRequired bool) ([]byte, error) {
 	conn, err := udpConn(ctx)
 	if err != nil {
 		return nil, err
@@ -140,9 +160,10 @@ func (d *Device) query(ctx context.Context, reqType, respType uint16, reqBody []
 	var hdr header
 	hdr.frameHeader.source = 0xdeadbeef // TODO: randomly generate
 	copy(hdr.frameAddress.target[0:6], d.Serial[:])
-	hdr.frameAddress.resRequired = true
+	hdr.frameAddress.resRequired = resRequired
+	hdr.frameAddress.ackRequired = ackRequired
 	hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
-	hdr.protocolHeader.typ = reqType
+	hdr.protocolHeader.typ = uint16(reqType)
 	msg := encodeMessage(hdr, reqBody)
 
 	if _, err := conn.WriteToUDP(msg, &d.Addr); err != nil {
@@ -155,44 +176,21 @@ func (d *Device) query(ctx context.Context, reqType, respType uint16, reqBody []
 	}
 
 	// TODO: Check that hdr.frameHeader.source matches what we sent out.
-	if hdr.protocolHeader.typ != respType {
+	if rt := msgType(hdr.protocolHeader.typ); rt != respType {
 		// Some different message for someone else?
-		return nil, fmt.Errorf("received message type %d (want %d)", hdr.protocolHeader.typ, respType)
+		return nil, fmt.Errorf("received message type %d (want %d)", rt, respType)
 	}
 
 	return payload, nil
 }
 
-// set performs a Set operation and waits for an acknowledgement.
-func (d *Device) set(ctx context.Context, reqType uint16, reqBody []byte) error {
-	conn, err := udpConn(ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
+// query sends a request and waits for a response.
+func (d *Device) query(ctx context.Context, reqType, respType msgType, reqBody []byte) ([]byte, error) {
+	return d.oneRPC(ctx, reqType, respType, reqBody, true, false)
+}
 
-	var hdr header
-	hdr.frameHeader.source = 0xdeadbeef // TODO: randomly generate
-	copy(hdr.frameAddress.target[0:6], d.Serial[:])
-	hdr.frameAddress.ackRequired = true
-	hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
-	hdr.protocolHeader.typ = reqType
-	msg := encodeMessage(hdr, reqBody)
-
-	if _, err := conn.WriteToUDP(msg, &d.Addr); err != nil {
-		return fmt.Errorf("sending message: %v", err)
-	}
-
-	hdr, _, _, err = readOnePacket(conn)
-	if err != nil {
-		return err
-	}
-
-	// TODO: Check that hdr.frameHeader.source matches what we sent out.
-	if hdr.protocolHeader.typ != 45 { // Acknowledgement
-		// Some different message for someone else?
-		return fmt.Errorf("received message type %d (want 45)", hdr.protocolHeader.typ)
-	}
-
-	return nil
+// set performs an operation and waits for an acknowledgement.
+func (d *Device) set(ctx context.Context, reqType msgType, reqBody []byte) error {
+	_, err := d.oneRPC(ctx, reqType, pktAcknowledgement, reqBody, false, true)
+	return err
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func (d *Device) GetLightPower(ctx context.Context) (uint16, error) {
-	payload, err := d.query(ctx, 116, 118, nil)
+	payload, err := d.query(ctx, pktGetLightPower, pkgStateLightPower, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -18,7 +18,7 @@ func (d *Device) GetLightPower(ctx context.Context) (uint16, error) {
 }
 
 func (d *Device) GetPower(ctx context.Context) (uint16, error) {
-	payload, err := d.query(ctx, 20, 22, nil)
+	payload, err := d.query(ctx, pktGetPower, pktStatePower, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -29,7 +29,7 @@ func (d *Device) GetPower(ctx context.Context) (uint16, error) {
 }
 
 func (d *Device) GetLabel(ctx context.Context) (string, error) {
-	payload, err := d.query(ctx, 23, 25, nil)
+	payload, err := d.query(ctx, pktGetLabel, pktStateLabel, nil)
 	if err != nil {
 		return "", err
 	}
@@ -46,7 +46,7 @@ func (d *Device) GetLabel(ctx context.Context) (string, error) {
 }
 
 func (d *Device) GetVersion(ctx context.Context) (vendor, product uint32, err error) {
-	payload, err := d.query(ctx, 32, 33, nil)
+	payload, err := d.query(ctx, pktGetVersion, pktStateVersion, nil)
 	if err != nil {
 		return 0, 0, err
 	}

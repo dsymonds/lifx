@@ -37,7 +37,7 @@ func (c *Color) decode(b []byte) {
 }
 
 func (d *Device) GetExtendedColorZones(ctx context.Context) (zones []Color, err error) {
-	payload, err := d.query(ctx, 511, 512, nil)
+	payload, err := d.query(ctx, pktGetExtendedColorZones, pktStateExtendedColorZones, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -92,5 +92,5 @@ func (d *Device) SetExtendedColorZones(ctx context.Context, duration time.Durati
 		off += encodedColorLength
 	}
 
-	return d.set(ctx, 510, payload)
+	return d.set(ctx, pktSetExtendedColorZones, payload)
 }
