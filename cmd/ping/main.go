@@ -46,5 +46,30 @@ func main() {
 		} else {
 			log.Printf("  [%v]", err)
 		}
+
+		zones, err := dev.GetExtendedColorZones(ctx)
+		if err == nil {
+			z0 := zones[0]
+			log.Printf("  %d zones of color; first is hsb(%d,%d,%d) k=%d",
+				len(zones), z0.Hue, z0.Saturation, z0.Brightness, z0.Kelvin)
+		} else {
+			log.Printf("  [%v]", err)
+		}
+
+		if label == "TV" && len(zones) > 0 {
+			for i := range zones {
+				if i&1 == 0 {
+					// Red
+					zones[i] = lifx.Color{Hue: 0, Saturation: 0xFFFF, Brightness: 0xFFFF}
+				} else {
+					// Blue
+					zones[i] = lifx.Color{Hue: 0xAAAA, Saturation: 0xFFFF, Brightness: 0xFFFF}
+				}
+			}
+			err := dev.SetExtendedColorZones(ctx, 2*time.Second, zones)
+			if err != nil {
+				log.Printf("  SetExtendedColorZones: %v", err)
+			}
+		}
 	}
 }

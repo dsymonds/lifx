@@ -162,3 +162,37 @@ func (d *Device) query(ctx context.Context, reqType, respType uint16, reqBody []
 
 	return payload, nil
 }
+
+// set performs a Set operation and waits for an acknowledgement.
+func (d *Device) set(ctx context.Context, reqType uint16, reqBody []byte) error {
+	conn, err := udpConn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var hdr header
+	hdr.frameHeader.source = 0xdeadbeef // TODO: randomly generate
+	copy(hdr.frameAddress.target[0:6], d.Serial[:])
+	hdr.frameAddress.ackRequired = true
+	hdr.frameAddress.sequence = 1 // TODO: sequence on a per device basis
+	hdr.protocolHeader.typ = reqType
+	msg := encodeMessage(hdr, reqBody)
+
+	if _, err := conn.WriteToUDP(msg, &d.Addr); err != nil {
+		return fmt.Errorf("sending message: %v", err)
+	}
+
+	hdr, _, _, err = readOnePacket(conn)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Check that hdr.frameHeader.source matches what we sent out.
+	if hdr.protocolHeader.typ != 45 { // Acknowledgement
+		// Some different message for someone else?
+		return fmt.Errorf("received message type %d (want 45)", hdr.protocolHeader.typ)
+	}
+
+	return nil
+}
