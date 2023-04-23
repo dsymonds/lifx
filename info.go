@@ -72,3 +72,40 @@ func (d *Device) GetVersion(ctx context.Context) (vendor, product uint32, err er
 	product = binary.LittleEndian.Uint32(payload[4:8])
 	return
 }
+
+type State struct {
+	power uint16
+	zones []Color
+
+	// TODO: will need to capture effects too.
+}
+
+func (s State) NumZones() int { return len(s.zones) }
+
+// CaptureState queries the device and returns its current configuration.
+func (d *Device) CaptureState(ctx context.Context) (state State, err error) {
+	state.power, err = d.GetLightPower(ctx)
+	if err != nil {
+		err = fmt.Errorf("GetLightPower: %w", err)
+		return
+	}
+	state.zones, err = d.GetExtendedColorZones(ctx)
+	if err != nil {
+		err = fmt.Errorf("GetExtendedColorZones: %w", err)
+		return
+	}
+	return
+}
+
+// RestoreState restores a device to its configuration at the time CaptureState was invoked.
+func (d *Device) RestoreState(ctx context.Context, state State) error {
+	err := d.SetExtendedColorZones(ctx, 0, state.zones)
+	if err != nil {
+		return fmt.Errorf("SetExtendedColorZones: %w", err)
+	}
+	err = d.SetLightPower(ctx, state.power, 0)
+	if err != nil {
+		return fmt.Errorf("SetLightPower: %w", err)
+	}
+	return nil
+}
