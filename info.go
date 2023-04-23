@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
+	"time"
 )
 
 func (d *Device) GetLightPower(ctx context.Context) (uint16, error) {
@@ -15,6 +17,19 @@ func (d *Device) GetLightPower(ctx context.Context) (uint16, error) {
 		return 0, fmt.Errorf("StateLightPower malformed: length=%d", len(payload))
 	}
 	return binary.LittleEndian.Uint16(payload), nil
+}
+
+func (d *Device) SetLightPower(ctx context.Context, level uint16, duration time.Duration) error {
+	dur := duration.Milliseconds()
+	if dur < 0 || dur > math.MaxUint32 {
+		return fmt.Errorf("duration %v out of range", duration)
+	}
+
+	var payload []byte
+	payload = binary.LittleEndian.AppendUint16(payload, level)
+	binary.LittleEndian.AppendUint32(payload, uint32(dur))
+
+	return d.set(ctx, pktSetLightPower, payload)
 }
 
 func (d *Device) GetPower(ctx context.Context) (uint16, error) {

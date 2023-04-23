@@ -42,6 +42,7 @@ const (
 	pktStateVersion            = msgType(33)
 	pktAcknowledgement         = msgType(45)
 	pktGetLightPower           = msgType(116)
+	pktSetLightPower           = msgType(117)
 	pkgStateLightPower         = msgType(118)
 	pktSetExtendedColorZones   = msgType(510)
 	pktGetExtendedColorZones   = msgType(511)
