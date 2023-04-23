@@ -27,7 +27,7 @@ type Device struct {
 // The provided context controls how long to wait for responses;
 // its cancellation or deadline expiry will stop execution of Discover
 // but will not return an error.
-func (c *Client) Discover(ctx context.Context) ([]Device, error) {
+func (c *Client) Discover(ctx context.Context) ([]*Device, error) {
 	// Use a distinct UDP conn just for discovery so we control the timeout.
 	conn, err := udpConn(ctx)
 	if err != nil {
@@ -56,7 +56,7 @@ func (c *Client) Discover(ctx context.Context) ([]Device, error) {
 	}
 
 	// Wait for any responses.
-	var devs []Device
+	var devs []*Device
 	for {
 		hdr, payload, raddr, err := readOnePacket(conn)
 		if err != nil {
@@ -86,7 +86,7 @@ func (c *Client) Discover(ctx context.Context) ([]Device, error) {
 			return nil, fmt.Errorf("StateService response payload has illegal port field %x", payload[1:5])
 		}
 
-		devs = append(devs, Device{
+		devs = append(devs, &Device{
 			// Per docs, use the remote IP address, but the port from the payload.
 			Addr: net.UDPAddr{
 				IP:   raddr.IP,
