@@ -93,7 +93,6 @@ func main() {
 	}
 	log.Printf("Transition runnings for %v...", playTime/2)
 	time.Sleep(playTime / 2)
-	// TODO: exercise waveforms too?
 
 	// Wait, then restore the original state.
 	log.Printf("Sleeping for %v...", playTime/2)

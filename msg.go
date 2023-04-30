@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/rand"
 	"net"
+	"time"
 )
 
 type Client struct {
@@ -41,6 +43,7 @@ const (
 	pktGetVersion              = msgType(32)
 	pktStateVersion            = msgType(33)
 	pktAcknowledgement         = msgType(45)
+	pktSetWaveform             = msgType(103)
 	pktGetLightPower           = msgType(116)
 	pktSetLightPower           = msgType(117)
 	pkgStateLightPower         = msgType(118)
@@ -80,13 +83,15 @@ type header struct {
 	}
 }
 
-func encodeMessage(hdr header, payload []byte) []byte {
-	bit := func(b bool) uint {
-		if b {
-			return 1
-		}
-		return 0
+func boolInt(b bool) byte {
+	if b {
+		return 1
 	}
+	return 0
+}
+
+func encodeMessage(hdr header, payload []byte) []byte {
+	bit := func(b bool) uint { return uint(boolInt(b)) }
 
 	finalSize := 8 + 16 + 12 + len(payload)
 	out := make([]byte, 0, finalSize)
@@ -222,4 +227,12 @@ func (d *Device) query(ctx context.Context, reqType, respType msgType, reqBody [
 func (d *Device) set(ctx context.Context, reqType msgType, reqBody []byte) error {
 	_, err := d.oneRPC(ctx, reqType, pktAcknowledgement, reqBody, false, true)
 	return err
+}
+
+func uint32Millis(d time.Duration) (uint32, error) {
+	dur := d.Milliseconds()
+	if dur < 0 || dur > math.MaxUint32 {
+		return 0, fmt.Errorf("duration %v out of range", d)
+	}
+	return uint32(dur), nil
 }

@@ -76,15 +76,15 @@ func (d *Device) SetExtendedColorZones(ctx context.Context, duration time.Durati
 	if len(zones) > 82 {
 		return fmt.Errorf("too many zones to set; %d > 82", len(zones))
 	}
-	dur := duration.Milliseconds()
-	if dur < 0 || dur > math.MaxUint32 {
-		return fmt.Errorf("duration %v out of range", duration)
+	dur, err := uint32Millis(duration)
+	if err != nil {
+		return err
 	}
 
 	payload := make([]byte, 4+1+2+1+len(zones)*encodedColorLength)
-	binary.LittleEndian.PutUint32(payload[0:4], uint32(dur)) // duration
-	payload[4] = 1                                           // apply; MultiZoneExtendedApplicationRequest(APPLY)
-	binary.LittleEndian.PutUint16(payload[5:7], 0)           // zone_index
+	binary.LittleEndian.PutUint32(payload[0:4], dur) // duration
+	payload[4] = 1                                   // apply; MultiZoneExtendedApplicationRequest(APPLY)
+	binary.LittleEndian.PutUint16(payload[5:7], 0)   // zone_index
 	payload[7] = uint8(len(zones))
 	for i, off := 0, 8; i < len(zones); i++ {
 		// The next line doesn't strictly need the second slice arg, but it is a useful sanity check.
@@ -93,4 +93,43 @@ func (d *Device) SetExtendedColorZones(ctx context.Context, duration time.Durati
 	}
 
 	return d.set(ctx, pktSetExtendedColorZones, payload)
+}
+
+type Waveform int
+
+const (
+	SawWaveform      = Waveform(0)
+	SineWaveform     = Waveform(1)
+	HalfSineWaveform = Waveform(2)
+	TriangleWaveform = Waveform(3)
+	PulseWaveform    = Waveform(4)
+)
+
+type WaveformConfig struct {
+	Waveform  Waveform
+	Transient bool
+
+	Color Color
+
+	Period time.Duration
+	Cycles float32
+
+	// TODO: skew_ratio, if needed. Also, optionality (and use SetWaveformOptional).
+}
+
+func (d *Device) SetWaveform(ctx context.Context, cfg WaveformConfig) error {
+	period, err := uint32Millis(cfg.Period)
+	if err != nil {
+		return err
+	}
+
+	payload := make([]byte, 21)
+	payload[1] = boolInt(cfg.Transient)                                         // transient
+	cfg.Color.encode(payload[2:10])                                             // hue, saturation, brightness, kelvin
+	binary.LittleEndian.PutUint32(payload[10:14], period)                       // period
+	binary.LittleEndian.PutUint32(payload[14:18], math.Float32bits(cfg.Cycles)) // cycles; this encoding is a guess
+	// skew_ratio left at 0 (only used for Pulse), which encodes 0.5.
+	payload[20] = byte(cfg.Waveform)
+
+	return d.set(ctx, pktSetWaveform, payload)
 }
