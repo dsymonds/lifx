@@ -46,6 +46,13 @@ func main() {
 		} else {
 			log.Printf("  [%v]", err)
 		}
+		prod, err := lifx.DetermineProduct(lifx.ProductsFile, vendor, product, hf)
+		if err == nil {
+			log.Printf("  product is %q", prod.Name)
+			log.Printf("  features: %s", prod.Features)
+		} else {
+			log.Printf("  [%v]", err)
+		}
 
 		power, err := dev.GetPower(ctx)
 		if err == nil {
