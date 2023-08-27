@@ -87,6 +87,9 @@ func main() {
 			zones[i] = lifx.Color{Hue: 0xAAAA, Saturation: 0xFFFF, Brightness: 0xFFFF}
 		}
 	}
+	if err := playDev.SetLightPower(ctx, 65535, 0); err != nil {
+		log.Printf("SetLightPower: %v", err)
+	}
 	err = playDev.SetExtendedColorZones(ctx, playTime/2, zones)
 	if err != nil {
 		log.Printf("SetExtendedColorZones: %v", err)
@@ -94,8 +97,25 @@ func main() {
 	log.Printf("Transition runnings for %v...", playTime/2)
 	time.Sleep(playTime / 2)
 
-	// Wait, then restore the original state.
-	log.Printf("Sleeping for %v...", playTime/2)
+	// Gently flash.
+	log.Printf("Waving...")
+	const cycles = 5
+	err = playDev.SetWaveform(ctx, lifx.WaveformConfig{
+		Waveform:  lifx.SineWaveform,
+		Transient: true, // the default for Sine anyway
+
+		Color: lifx.Color{
+			Hue:        0xD709,
+			Saturation: 0xFFFF,
+			Brightness: 0xFFFF,
+		},
+
+		Period: (playTime / 2) / cycles,
+		Cycles: cycles,
+	})
+	if err != nil {
+		log.Fatalf("SetWaveform: %v", err)
+	}
 	time.Sleep(playTime / 2)
 
 	log.Printf("Restoring state...")
