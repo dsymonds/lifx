@@ -92,6 +92,9 @@ func main() {
 	// Set a solid green over a short period.
 	const greenTime = 3 * time.Second
 	log.Printf("Going green...")
+	if err := playDev.QuietOn(ctx); err != nil { // put in an on-but-no-light state
+		log.Printf("QuietOn: %v", err)
+	}
 	if err := playDev.SetColor(ctx, lifx.Color{Hue: 0x5555, Saturation: 0xFFFF, Brightness: 0xBBBB}, greenTime); err != nil {
 		log.Printf("SetColor: %v", err)
 	}

@@ -49,6 +49,20 @@ func (d *Device) SetColor(ctx context.Context, color Color, duration time.Durati
 	return d.set(ctx, pktSetColor, payload)
 }
 
+// QuietOn turns on the light power if it isn't already turned on.
+// If it wasn't on, the light's brightness will be set to zero first.
+func (d *Device) QuietOn(ctx context.Context) error {
+	power, err := d.GetLightPower(ctx)
+	if err != nil || power > 0 {
+		return err
+	}
+	// Set to zero brightness, then turn on.
+	if err := d.SetColor(ctx, Color{Brightness: 0}, 0); err != nil {
+		return err
+	}
+	return d.SetLightPower(ctx, 0xFFFF, 0)
+}
+
 func (d *Device) GetExtendedColorZones(ctx context.Context) (zones []Color, err error) {
 	payload, err := d.query(ctx, pktGetExtendedColorZones, pktStateExtendedColorZones, nil)
 	if err != nil {
