@@ -72,6 +72,26 @@ func (d *Device) GetVersion(ctx context.Context) (vendor, product uint32, err er
 	return
 }
 
+type HostFirmware struct {
+	Build        time.Time
+	Major, Minor uint16
+}
+
+func (d *Device) GetHostFirmware(ctx context.Context) (HostFirmware, error) {
+	payload, err := d.query(ctx, pktGetHostFirmware, pktStateHostFirmware, nil)
+	if err != nil {
+		return HostFirmware{}, err
+	}
+	if len(payload) != 20 {
+		return HostFirmware{}, fmt.Errorf("StateHostFirmware malformed: length=%d", len(payload))
+	}
+	var hf HostFirmware
+	hf.Build = time.Unix(0, int64(binary.LittleEndian.Uint64(payload[0:8]))) // empirically seems to be unix nanos
+	hf.Minor = binary.LittleEndian.Uint16(payload[16:18])
+	hf.Major = binary.LittleEndian.Uint16(payload[18:20])
+	return hf, nil
+}
+
 type State struct {
 	power uint16
 	zones []Color

@@ -36,6 +36,8 @@ type msgType uint16
 const (
 	pktGetService              = msgType(2)
 	pktStateService            = msgType(3)
+	pktGetHostFirmware         = msgType(14)
+	pktStateHostFirmware       = msgType(15)
 	pktGetPower                = msgType(20)
 	pktStatePower              = msgType(22)
 	pktGetLabel                = msgType(23)

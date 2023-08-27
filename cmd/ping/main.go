@@ -40,6 +40,13 @@ func main() {
 		} else {
 			log.Printf("  [%v]", err)
 		}
+		hf, err := dev.GetHostFirmware(ctx)
+		if err == nil {
+			log.Printf("  firmware (%d,%d) built %v", hf.Major, hf.Minor, hf.Build)
+		} else {
+			log.Printf("  [%v]", err)
+		}
+
 		power, err := dev.GetPower(ctx)
 		if err == nil {
 			log.Printf("  power: %.1f%%", float64(power)/65535*100)
