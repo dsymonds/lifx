@@ -36,6 +36,19 @@ func (c *Color) decode(b []byte) {
 	c.Kelvin = binary.LittleEndian.Uint16(b[6:8])
 }
 
+func (d *Device) SetColor(ctx context.Context, color Color, duration time.Duration) error {
+	dur, err := uint32Millis(duration)
+	if err != nil {
+		return err
+	}
+
+	payload := make([]byte, 1+encodedColorLength+4)
+	color.encode(payload[1 : 1+encodedColorLength])
+	binary.LittleEndian.PutUint32(payload[1+encodedColorLength:], dur) // duration
+
+	return d.set(ctx, pktSetColor, payload)
+}
+
 func (d *Device) GetExtendedColorZones(ctx context.Context) (zones []Color, err error) {
 	payload, err := d.query(ctx, pktGetExtendedColorZones, pktStateExtendedColorZones, nil)
 	if err != nil {

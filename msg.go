@@ -45,6 +45,7 @@ const (
 	pktGetVersion              = msgType(32)
 	pktStateVersion            = msgType(33)
 	pktAcknowledgement         = msgType(45)
+	pktSetColor                = msgType(102)
 	pktSetWaveform             = msgType(103)
 	pktGetLightPower           = msgType(116)
 	pktSetLightPower           = msgType(117)

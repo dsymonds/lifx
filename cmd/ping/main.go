@@ -89,20 +89,26 @@ func main() {
 		log.Fatalf("CaptureState: %v", err)
 	}
 
+	// Set a solid green over a short period.
+	const greenTime = 3 * time.Second
+	log.Printf("Going green...")
+	if err := playDev.SetColor(ctx, lifx.Color{Hue: 0x5555, Saturation: 0xFFFF, Brightness: 0xBBBB}, greenTime); err != nil {
+		log.Printf("SetColor: %v", err)
+	}
+	time.Sleep(greenTime)
+
 	// Do something interesting.
 	const playTime = 10 * time.Second
+	log.Printf("Setting red & blue...")
 	zones := make([]lifx.Color, state.NumZones())
 	for i := range zones {
 		if i&1 == 0 {
 			// Red
 			zones[i] = lifx.Color{Hue: 0, Saturation: 0xFFFF, Brightness: 0xBBBB}
 		} else {
-			// Green
+			// Blue
 			zones[i] = lifx.Color{Hue: 0xAAAA, Saturation: 0xFFFF, Brightness: 0xFFFF}
 		}
-	}
-	if err := playDev.SetLightPower(ctx, 65535, 0); err != nil {
-		log.Printf("SetLightPower: %v", err)
 	}
 	err = playDev.SetExtendedColorZones(ctx, playTime/2, zones)
 	if err != nil {
