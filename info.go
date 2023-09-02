@@ -3,6 +3,7 @@ package lifx
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -94,7 +95,8 @@ func (d *Device) GetHostFirmware(ctx context.Context) (HostFirmware, error) {
 
 type State struct {
 	power uint16
-	zones []Color
+
+	zones []Color // nil if not a multi-zone device
 
 	// TODO: will need to capture effects too.
 }
@@ -109,7 +111,13 @@ func (d *Device) CaptureState(ctx context.Context) (state State, err error) {
 		return
 	}
 	state.zones, err = d.GetExtendedColorZones(ctx)
-	if err != nil {
+	var ue unhandledError
+	if err == nil {
+		// OK
+	} else if errors.As(err, &ue) {
+		// This is okay; the device doesn't have this capability.
+		state.zones, err = nil, nil
+	} else {
 		err = fmt.Errorf("GetExtendedColorZones: %w", err)
 		return
 	}
@@ -118,12 +126,13 @@ func (d *Device) CaptureState(ctx context.Context) (state State, err error) {
 
 // RestoreState restores a device to its configuration at the time CaptureState was invoked.
 func (d *Device) RestoreState(ctx context.Context, state State) error {
-	err := d.SetExtendedColorZones(ctx, 0, state.zones)
-	if err != nil {
-		return fmt.Errorf("SetExtendedColorZones: %w", err)
+	if state.zones != nil {
+		err := d.SetExtendedColorZones(ctx, 0, state.zones)
+		if err != nil {
+			return fmt.Errorf("SetExtendedColorZones: %w", err)
+		}
 	}
-	err = d.SetLightPower(ctx, state.power, 0)
-	if err != nil {
+	if err := d.SetLightPower(ctx, state.power, 0); err != nil {
 		return fmt.Errorf("SetLightPower: %w", err)
 	}
 	return nil

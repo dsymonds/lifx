@@ -240,6 +240,12 @@ func (d *Device) retry(ctx context.Context, f retryableOp) error {
 	}
 }
 
+type unhandledError int
+
+func (u unhandledError) Error() string {
+	return fmt.Sprintf("LIFX device can't handle packet type %d", u)
+}
+
 func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody []byte, resRequired, ackRequired bool) ([]byte, error) {
 	seq := d.seq
 	d.seq++
@@ -280,7 +286,7 @@ func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody 
 	case respType:
 		// This is what we want.
 	case pktStateUnhandled:
-		return nil, fmt.Errorf("LIFX device can't handle packet type %d", reqType)
+		return nil, unhandledError(reqType)
 	default:
 		return nil, fmt.Errorf("received message type %d (want %d)", rt, respType)
 	}
