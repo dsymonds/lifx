@@ -8,7 +8,7 @@ import (
 )
 
 func (d *Device) GetLightPower(ctx context.Context) (uint16, error) {
-	payload, err := d.query(ctx, pktGetLightPower, pkgStateLightPower, nil)
+	payload, err := d.query(ctx, pktGetLightPower, pktStateLightPower, nil)
 	if err != nil {
 		return 0, err
 	}

@@ -52,7 +52,8 @@ const (
 	pktLightState              = msgType(107)
 	pktGetLightPower           = msgType(116)
 	pktSetLightPower           = msgType(117)
-	pkgStateLightPower         = msgType(118)
+	pktStateLightPower         = msgType(118)
+	pktStateUnhandled          = msgType(223)
 	pktSetExtendedColorZones   = msgType(510)
 	pktGetExtendedColorZones   = msgType(511)
 	pktStateExtendedColorZones = msgType(512)
@@ -275,7 +276,12 @@ func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody 
 	if respHdr.frameHeader.source != d.client.source {
 		return nil, fmt.Errorf("received message source 0x%x (want 0x%x)", respHdr.frameHeader.source, d.client.source)
 	}
-	if rt := msgType(respHdr.protocolHeader.typ); rt != respType {
+	switch rt := msgType(respHdr.protocolHeader.typ); rt {
+	case respType:
+		// This is what we want.
+	case pktStateUnhandled:
+		return nil, fmt.Errorf("LIFX device can't handle packet type %d", reqType)
+	default:
 		return nil, fmt.Errorf("received message type %d (want %d)", rt, respType)
 	}
 	if respHdr.frameAddress.sequence != seq {
