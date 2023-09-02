@@ -2,18 +2,19 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"time"
 
 	"github.com/dsymonds/lifx"
 )
 
-const (
-	// Label of a device to exercise.
-	playLabel = "TV"
+var (
+	playLabel = flag.String("play", "TV", "`label` of a device to exercise")
 )
 
 func main() {
+	flag.Parse()
 	ctx := context.Background()
 
 	client, err := lifx.NewClient()
@@ -66,6 +67,12 @@ func main() {
 		} else {
 			log.Printf("  [%v]", err)
 		}
+		col, err := dev.GetColor(ctx)
+		if err == nil {
+			log.Printf("  color: %+v", col)
+		} else {
+			log.Printf("  [%v]", err)
+		}
 		label, err := dev.GetLabel(ctx)
 		if err == nil {
 			log.Printf("  label: %q", label)
@@ -73,13 +80,13 @@ func main() {
 			log.Printf("  [%v]", err)
 		}
 
-		if label == playLabel {
+		if label == *playLabel {
 			playDev = dev
 		}
 	}
 
 	if playDev == nil {
-		log.Printf("No device with label %q; I'm done.", playLabel)
+		log.Printf("No device with label %q; I'm done.", *playLabel)
 		return
 	}
 

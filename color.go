@@ -36,6 +36,19 @@ func (c *Color) decode(b []byte) {
 	c.Kelvin = binary.LittleEndian.Uint16(b[6:8])
 }
 
+func (d *Device) GetColor(ctx context.Context) (Color, error) {
+	payload, err := d.query(ctx, pktGetColor, pktLightState, nil)
+	if err != nil {
+		return Color{}, err
+	}
+	if len(payload) != encodedColorLength+2+2+32+8 {
+		return Color{}, fmt.Errorf("LightState malformed: length=%d", len(payload))
+	}
+	var color Color
+	color.decode(payload[:encodedColorLength])
+	return color, nil
+}
+
 func (d *Device) SetColor(ctx context.Context, color Color, duration time.Duration) error {
 	dur, err := uint32Millis(duration)
 	if err != nil {
