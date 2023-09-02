@@ -89,6 +89,9 @@ func main() {
 		log.Printf("No device with label %q; I'm done.", *playLabel)
 		return
 	}
+	playDev.Tracef = func(ctx context.Context, format string, args ...interface{}) {
+		log.Printf("--> "+format, args...)
+	}
 
 	// Capture current state.
 	state, err := playDev.CaptureState(ctx)

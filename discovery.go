@@ -21,6 +21,15 @@ type Device struct {
 
 	client *Client
 	seq    uint8 // sequence number for this device
+
+	// Tracef, if set, will be used to write trace lines.
+	Tracef func(ctx context.Context, format string, args ...interface{})
+}
+
+func (d *Device) tracef(ctx context.Context, format string, args ...interface{}) {
+	if d.Tracef != nil {
+		d.Tracef(ctx, format, args...)
+	}
 }
 
 // Discover probes the network for LIFX devices.

@@ -3,6 +3,7 @@ package lifx
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -182,13 +183,63 @@ func readOnePacket(conn *net.UDPConn) (hdr header, payload []byte, raddr *net.UD
 	return
 }
 
-func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody []byte, resRequired, ackRequired bool) ([]byte, error) {
-	conn, err := udpConn(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+// Automatic retry parameters.
+//
+// UDP doesn't have reliability guarantees. LIFX devices are usually pretty
+// good on a LAN, but in the event a packet is dropped we can set strict
+// timeouts and aggressively retry to improve reliability.
+const (
+	baseTimeout = 300 * time.Millisecond
+	backoffMult = 1.5
+	maxTimeout  = 10 * time.Second
+)
 
+type retryableOp func(context.Context) error
+
+// retryableErr reports whether the error should cause another try.
+func retryableErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var neterr net.Error
+	if errors.As(err, &neterr) && neterr.Timeout() {
+		return true
+	}
+	return false // any other error is probably permanent
+}
+
+func (d *Device) retry(ctx context.Context, f retryableOp) error {
+	// Classic exponential backoff.
+
+	timeout := baseTimeout
+	for {
+		sub, cancel := context.WithTimeout(ctx, timeout)
+		d.tracef(ctx, "LIFX op starting with timeout %v", timeout)
+		t0 := time.Now()
+		err := f(sub)
+		cancel()
+		if !retryableErr(err) {
+			// Success, or a non-timeout failure.
+			d.tracef(ctx, "LIFX op finished after %v", time.Since(t0))
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			// Give up on the overall effort.
+			d.tracef(ctx, "LIFX op giving up")
+			return err
+		}
+		// Try again.
+		timeout = time.Duration(float64(timeout) * backoffMult)
+		if timeout > maxTimeout {
+			timeout = maxTimeout
+		}
+	}
+}
+
+func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody []byte, resRequired, ackRequired bool) ([]byte, error) {
 	seq := d.seq
 	d.seq++
 
@@ -201,26 +252,37 @@ func (d *Device) oneRPC(ctx context.Context, reqType, respType msgType, reqBody 
 	hdr.protocolHeader.typ = uint16(reqType)
 	msg := encodeMessage(hdr, reqBody)
 
-	if _, err := conn.WriteToUDP(msg, &d.Addr); err != nil {
-		return nil, fmt.Errorf("sending message: %v", err)
-	}
+	var respHdr header
+	var respBody []byte
+	err := d.retry(ctx, func(ctx context.Context) error {
+		conn, err := udpConn(ctx)
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
 
-	hdr, payload, _, err := readOnePacket(conn)
+		if _, err := conn.WriteToUDP(msg, &d.Addr); err != nil {
+			return fmt.Errorf("sending message: %v", err)
+		}
+
+		respHdr, respBody, _, err = readOnePacket(conn)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	if hdr.frameHeader.source != d.client.source {
-		return nil, fmt.Errorf("received message source 0x%x (want 0x%x)", hdr.frameHeader.source, d.client.source)
+	if respHdr.frameHeader.source != d.client.source {
+		return nil, fmt.Errorf("received message source 0x%x (want 0x%x)", respHdr.frameHeader.source, d.client.source)
 	}
-	if rt := msgType(hdr.protocolHeader.typ); rt != respType {
+	if rt := msgType(respHdr.protocolHeader.typ); rt != respType {
 		return nil, fmt.Errorf("received message type %d (want %d)", rt, respType)
 	}
-	if hdr.frameAddress.sequence != seq {
-		return nil, fmt.Errorf("received message with seq %d (want %d)", hdr.frameAddress.sequence, seq)
+	if respHdr.frameAddress.sequence != seq {
+		return nil, fmt.Errorf("received message with seq %d (want %d)", respHdr.frameAddress.sequence, seq)
 	}
 
-	return payload, nil
+	return respBody, nil
 }
 
 // query sends a request and waits for a response.
