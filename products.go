@@ -79,7 +79,7 @@ func (pc *ProductCapabilities) merge(o ProductCapabilities) {
 			return
 		}
 		if *dst == nil {
-			*dst = boolPtr(false) // will be immediately overwritten
+			*dst = new(false) // will be immediately overwritten
 		}
 		**dst = *src
 	}
@@ -143,13 +143,13 @@ func DetermineProduct(file []VendorProducts, vendorID, productID uint32, firmwar
 	// Start with the default capabilities, then copy over the product capabilities.
 	// Finally, apply specific version upgrades.
 	cap := ProductCapabilities{
-		HEV:    boolPtr(false),
-		Color:  boolPtr(false),
-		Matrix: boolPtr(false),
+		HEV:    new(false),
+		Color:  new(false),
+		Matrix: new(false),
 
-		Multizone: boolPtr(false),
+		Multizone: new(false),
 		// no TemperatureRange default
-		ExtendedMultizone: boolPtr(false),
+		ExtendedMultizone: new(false),
 	}
 	cap.merge(vp.Defaults)
 	cap.merge(product.Features)
@@ -164,5 +164,3 @@ func DetermineProduct(file []VendorProducts, vendorID, productID uint32, firmwar
 
 	return product, nil
 }
-
-func boolPtr(b bool) *bool { return &b }

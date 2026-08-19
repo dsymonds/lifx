@@ -7,6 +7,7 @@ import (
 )
 
 func mustJSON(t *testing.T, x interface{}) string {
+	t.Helper()
 	b, err := json.Marshal(x)
 	if err != nil {
 		t.Fatalf("internal error: json.Marshal: %v", err)
@@ -30,17 +31,17 @@ func TestProducts(t *testing.T) {
 		Name: "LIFX Z",
 		Features: ProductCapabilities{
 			// DetermineProduct should set omitted entries to explicit false values.
-			HEV:    boolPtr(false),
-			Color:  boolPtr(true),
-			Matrix: boolPtr(false),
+			HEV:    new(false),
+			Color:  new(true),
+			Matrix: new(false),
 
-			Relays:   boolPtr(false),
-			Buttons:  boolPtr(false),
-			Infrared: boolPtr(false),
+			Relays:   new(false),
+			Buttons:  new(false),
+			Infrared: new(false),
 
-			Multizone:         boolPtr(true),
+			Multizone:         new(true),
 			TemperatureRange:  []uint16{2500, 9000},
-			ExtendedMultizone: boolPtr(true),
+			ExtendedMultizone: new(true),
 		},
 	}
 	if !reflect.DeepEqual(p, want) {
