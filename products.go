@@ -43,6 +43,10 @@ type ProductCapabilities struct {
 	Color  *bool `json:"color,omitempty"`
 	Matrix *bool `json:"matrix,omitempty"`
 
+	Relays   *bool `json:"relays,omitempty"`
+	Buttons  *bool `json:"buttons,omitempty"`
+	Infrared *bool `json:"infrared,omitempty"`
+
 	Multizone         *bool    `json:"multizone,omitempty"`
 	TemperatureRange  []uint16 `json:"temperature_range"` // should be two values (min and max); may be nil from DetermineProduct
 	ExtendedMultizone *bool    `json:"extended_multizone,omitempty"`
@@ -83,6 +87,9 @@ func (pc *ProductCapabilities) merge(o ProductCapabilities) {
 	copyBool(&pc.HEV, o.HEV)
 	copyBool(&pc.Color, o.Color)
 	copyBool(&pc.Matrix, o.Matrix)
+	copyBool(&pc.Relays, o.Relays)
+	copyBool(&pc.Buttons, o.Buttons)
+	copyBool(&pc.Infrared, o.Infrared)
 
 	copyBool(&pc.Multizone, o.Multizone)
 	if tr := o.TemperatureRange; len(tr) > 0 {

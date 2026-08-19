@@ -34,6 +34,10 @@ func TestProducts(t *testing.T) {
 			Color:  boolPtr(true),
 			Matrix: boolPtr(false),
 
+			Relays:   boolPtr(false),
+			Buttons:  boolPtr(false),
+			Infrared: boolPtr(false),
+
 			Multizone:         boolPtr(true),
 			TemperatureRange:  []uint16{2500, 9000},
 			ExtendedMultizone: boolPtr(true),
